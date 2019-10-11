@@ -1,0 +1,143 @@
+
+#########################
+## Notifier methods
+#
+
+lane :notify_tests_error do |options|
+  exception = options[:exception]
+  app_title = options[:app_title]
+
+  fields = [
+    {
+      title: "Exception",
+      value: "#{exception.to_s}",
+      short: true
+    }
+  ]
+  if ENV['BITRISE_BUILD_URL']
+    fields << {
+    title: "More info under \"Apps & Artifacts\" → \"report.html\"",
+    value: "#{ENV['BITRISE_BUILD_URL']}",
+    short: false
+  }
+
+  if ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']
+    slack(
+      success: false,
+      slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'],
+      default_payloads: [:git_branch],
+      attachment_properties: {
+        pretext: "TESTS HAVE FAILED. Please check the link for more information:",
+        title: "#{app_title}",
+        title_link: "#{ENV['BITRISE_BUILD_URL']}",
+        text: "Either there was a problem with the test environment, or one or more tests have failed.",
+        fields: fields
+      }
+    )
+  end
+  ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
+  UI.user_error!("#{exception}")
+end
+
+
+lane :notify_build_error do |options|
+  exception = options[:exception]
+  pretext_start = options[:pretext_start]
+  error_log = options[:error_log]
+  app_title = options[:app_title]
+
+  output_directory =ENV['SCAN_OUTPUT_DIRECTORY']
+
+  fields = [
+    {
+      title: "Exception",
+      value: "#{exception}",
+      short: true
+    }
+  ]
+  if ENV['BITRISE_BUILD_URL']
+    fields << {
+    title: "More info under \"Apps & Artifacts\" → \"gym_(AppName).log\"",
+    value: "#{ENV['BITRISE_BUILD_URL']}",
+    short: false
+  }
+  end
+
+  slack(
+    success: false,
+    slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'],
+    default_payloads: [:git_branch],
+    attachment_properties: {
+      pretext: "#{pretext_start}. There has been a build error. See below for the XCBuild log:",
+      title: "#{app_title}",
+      title_link: "#{ENV['BITRISE_BUILD_URL']}",
+      text:"XCBuild log recorded by Fastlane:\n```\n#{error_log}\n```",
+      fields: fields
+    }
+  )
+
+end
+
+# Because the Public install link is not available until the upload step is completed, this lane must be called seperatly
+
+lane :notify_bitrise_public_link do |options|
+  webhook = options[:slack_webhook]
+
+  if ENV["BITRISE_PUBLIC_INSTALL_PAGE_URL"] && webhook
+    slack(
+      success: true,
+      slack_url: webhook,
+      default_payloads: [:git_branch, :last_git_commit_message],
+      attachment_properties: {
+        pretext: "New activity from Fastlane running on Bitrise",
+        title: "#{ENV['APP_NAME']} (#{ENV['BITRISE_BUILD_NUMBER']})",
+        title_link: "#{ENV['BITRISE_BUILD_URL']}",
+        text: "Tests passed and a new build is available for download.",
+        fields: [
+            {
+                title: "Public install direct link:",
+                value: "#{ENV["BITRISE_PUBLIC_INSTALL_PAGE_URL"]}",
+                short: false
+            }
+          ]
+      }
+    )
+  else
+    # TODO: log values because something has gone wrong here
+  end
+end
+
+
+desc 'Handle and notify for errors that aren\'t otherwise'
+error do |lane, exception|
+  if ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']
+
+    if exception.respond_to?(:error_info)
+      body_text = "Error with info: #{exception.error_info.to_s}"
+    else
+      body_text = "Unknown error"
+    end
+
+    slack(
+      success: false,
+      slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'],
+      default_payloads: [:git_branch],
+      attachment_properties: {
+        pretext: "There has been an error. See the link for more information on which tests have failed.",
+        title: "#{ENV['APP_NAME']} (#{ENV['BITRISE_BUILD_NUMBER']})",
+        title_link: "#{ENV['BITRISE_BUILD_URL']}",
+        text: body_text,
+      fields: [
+        {
+            title: "Exception",
+            value: "#{exception}",
+            short: false
+        }
+        ]
+      }
+    )
+  else
+    UI.error("lane: #{lane}, Exception: #{exception}")
+  end
+end
+
