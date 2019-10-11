@@ -46,7 +46,8 @@ end
 # These lanes call scan and build methods with bitrise values. Notification requires previous setup.
 
 lane :scan_on_bitrise do |options|
-  ENV['SCAN_OUTPUT_DIRECTORY'] = './fastlane'
+  ENV['SCAN_OUTPUT_DIRECTORY'] = ENV['BITRISE_DEPLOY_DIR']
+  ENV['SCAN_BUILDLOG_PATH'] = ENV['BITRISE_DEPLOY_DIR']
   ENV['BITRISE_SCAN_LOG_PATH_PREFIX'] = "#{ENV['BITRISE_DEPLOY_DIR']}/scan_"
 
   scan_and_notify
