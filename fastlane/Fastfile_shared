@@ -1,0 +1,173 @@
+
+import_from_git(url: "git@github.com:mikesanderson/fastlane.git", # The URL of the repository to import the Fastfile from.
+  branch: "master", # The branch to checkout on the repository
+  path: "fastlane/Fastfile_match" # The path of the Fastfile in the repository
+)
+import_from_git(url: "git@github.com:mikesanderson/fastlane.git", # The URL of the repository to import the Fastfile from.
+  branch: "master", # The branch to checkout on the repository
+  path: "fastlane/Fastfile_notifier" # The path of the Fastfile in the repository
+)
+
+#########################
+## Local Scan
+#
+# These lanes call scan methods with local values and do not notify
+
+lane :local_scan_and_build do |options|
+  ENV['BITRISE_BUILD_NUMBER'] = "(local)"
+
+  scan_local
+  build_local
+end
+
+lane :scan_local do |options|
+  ENV['SCAN_XCCONFIG'] = 'qa.xcconfig'
+  
+  ENV['SCAN_OUTPUT_DIRECTORY'] = './fastlane'
+  ENV['BITRISE_SCAN_LOG_PATH_PREFIX'] = ""
+
+  scan_and_notify
+end
+
+lane :build_local do |options|
+  ENV['GYM_XCCONFIG'] = 'qa.xcconfig'
+  
+  ENV['GYM_BUILDLOG_PATH'] = "./fastlane"
+  ENV['GYM_OUTPUT_DIRECTORY'] = "./fastlane"
+  ENV['BITRISE_GYM_LOG_PATH_PREFIX'] = ""
+
+  build_app_and_notify
+end
+
+#########################
+
+#########################
+## Bitrise Scan and Build
+#
+# These lanes call scan and build methods with bitrise values. Notification requires previous setup. 
+
+lane :scan_on_bitrise do |options|
+  ENV['SCAN_OUTPUT_DIRECTORY'] = './fastlane'
+  ENV['BITRISE_SCAN_LOG_PATH_PREFIX'] = "#{ENV['BITRISE_DEPLOY_DIR']}/scan_"
+
+  scan_and_notify
+end
+
+lane :build_on_bitrise do |options|
+  ENV['GYM_BUILDLOG_PATH'] = ENV['BITRISE_DEPLOY_DIR']
+  ENV['GYM_OUTPUT_DIRECTORY'] = ENV['BITRISE_DEPLOY_DIR']
+  ENV['BITRISE_GYM_LOG_PATH_PREFIX'] = "#{ENV['BITRISE_DEPLOY_DIR']}/gym_"
+
+  build_app_and_notify
+end
+
+#########################
+
+
+#########################
+## QA
+#
+# This lane kicks off QA builds
+
+ENV['QA_APP_SIGNING_TYPE'] = "adhoc"
+
+desc ''' qa
+Initialize - see qa_init
+
+Build
+
+Setup to run in bitrise environment. The lane will run tests, run Match and then build into the Bitrise deploy directory.
+
+This will notify to the 
+  '''
+lane :qa do |options|
+  ENV['NOTIFIER_SLACK_WEBHOOK_SUCCESS'] = ENV['NOTIFIER_SLACK_WEBHOOK_SUCCESS_QA']
+  ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']   = ENV['NOTIFIER_SLACK_WEBHOOK_ERROR_QA']
+
+  if options[:initialize]
+    qa_match_init
+  else
+    # scan with tests
+    ENV['SCAN_XCCONFIG'] = 'qa.xcconfig'
+    scan_on_bitrise
+
+    # run match
+    match(type: ENV['QA_APP_SIGNING_TYPE'], readonly: true, verbose: true)
+
+    # build into bitrise deploy directory
+    ENV['GYM_XCCONFIG'] = 'qa.xcconfig'
+    build_on_bitrise
+  end
+end
+
+
+#########################
+
+
+#########################
+## Build and scan with notify
+#
+# These lanes must have enviomental variables set beforehand.
+#
+# They will perform the scan or gym actions and notify if notifier webhooks were set
+
+lane :scan_and_notify  do | options |
+  ENV['SCAN_DERIVED_DATA_PATH'] = "."
+
+  # First build without testing to identify any development build issues
+  begin
+    scan(build_for_testing: true)
+  rescue => build_exception
+    error_log = sh("tail -30 #{ENV['BITRISE_SCAN_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log")
+
+    notify_build_error(
+      exception: build_exception,
+      pretext_start: "BUILD ERROR BEFORE TESTS",
+      error_log: error_log,
+      app_title: "#{Scan.project.app_name} (#{ENV['BITRISE_BUILD_NUMBER']})"
+    )
+
+    # This will cancel the lane without triggering another error notification:
+    ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
+    UI.user_error!("#{build_exception}")
+  end
+
+  # Then run tests on the build from the previous step 
+  begin
+    scan(test_without_building: true)
+  rescue => test_exeception
+    notify_tests_error(
+      exception: test_exeception,
+      app_title: "#{Scan.project.app_name} (#{ENV['BITRISE_BUILD_NUMBER']})"
+    )
+
+      # This will cancel the lane without triggering another error notification:
+    ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
+    UI.user_error!("#{test_exeception}")
+  end
+
+end
+
+lane :build_app_and_notify do |options|
+  # local defaults allow the lane to be tested locally
+
+  begin
+    gym
+  rescue => build_exception
+    error_log = sh("tail -30 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log")
+
+    notify_build_error(
+      exception: build_exception,
+      pretext_start: "BUILD ERROR AFTER TESTS",
+      error_log: error_log,
+      app_title: "#{Scan.project.app_name} (#{ENV['BITRISE_BUILD_NUMBER']})"
+    )
+
+    # This will cancel the lane without triggering another error notification:
+    ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
+    UI.user_error!("#{build_exception}")
+  end
+
+end
+
+#########################
