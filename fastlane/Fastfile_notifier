@@ -141,4 +141,3 @@ error do |lane, exception|
     UI.error("lane: #{lane}, Exception: #{exception}")
   end
 end
-
