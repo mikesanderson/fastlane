@@ -19,7 +19,7 @@ lane :notify_tests_error do |options|
     title: "More info under \"Apps & Artifacts\" → \"report.html\"",
     value: "#{ENV['BITRISE_BUILD_URL']}",
     short: false
-  }
+  end
 
   if ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']
     slack(
