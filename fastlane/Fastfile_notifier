@@ -82,9 +82,8 @@ end
 # Because the Public install link is not available until the upload step is completed, this lane must be called seperatly
 
 lane :notify_bitrise_public_link do |options|
-  webhook = options[:slack_webhook]
 
-  if ENV["BITRISE_PUBLIC_INSTALL_PAGE_URL"] && webhook
+  if ENV["BITRISE_PUBLIC_INSTALL_PAGE_URL"] && ENV['NOTIFIER_SLACK_WEBHOOK_SUCCESS']
     slack(
       success: true,
       slack_url: webhook,
