@@ -1,0 +1,36 @@
+#########################
+## Match Lanes
+#
+# Lanes used only for Match
+
+desc 'This lane takes values from Matchfile `for_lane match_dev`'
+lane :match_dev do |options|
+  if options[:initialize]
+    match(type: "development", readonly: false, verbose: true)
+  else
+    match(type: "development", readonly: true, verbose: true)
+  end
+end
+
+desc '''
+qa_match_init
+
+Alert! Use `fastlane qa initialize:true` to call this lane. Do not invoke this directly, because it will not pick up the shared Matchfile values for the QA lane. 
+
+Matchfile should be set up with `for_lane :qa` with app_identifier, team_id and `git_branch("shared")` if work.co cert is being used for QA.
+
+qa_match_init will prompt for Apple Developer username (email) and password if not previously entered (Fastlane stores in keychain)
+
+qa_match_init will prompt if the AppID should be created. If yes but the AppID exists it will print and message and continue. If it does not exist, it will prompt for the name.
+
+qa_match_init will then run Match not in readonly mode. If credentials exist (on the branch specified in git_branch) it should do nothing.
+'''
+lane :qa_match_init do |options|
+
+  username = prompt(text: "Apple Developer username: ")
+  needs_appID = prompt(boolean: true, text: "Also create AppID? ")
+  if needs_appID
+    produce(skip_itc:true, username: username)
+  end
+  match(username: username, type: ENV['QA_APP_SIGNING_TYPE'], readonly: false, verbose: true)
+end
