@@ -56,7 +56,7 @@ end
 lane :build_on_bitrise do |options|
   ENV['GYM_BUILDLOG_PATH'] = ENV['BITRISE_DEPLOY_DIR']
   ENV['GYM_OUTPUT_DIRECTORY'] = ENV['BITRISE_DEPLOY_DIR']
-  ENV['BITRISE_GYM_LOG_PATH_PREFIX'] = "#{ENV['BITRISE_DEPLOY_DIR']}/gym_"
+  ENV['BITRISE_GYM_LOG_PATH_PREFIX'] = "#{ENV['BITRISE_DEPLOY_DIR']}/"
 
   build_app_and_notify
 end
