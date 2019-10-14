@@ -159,7 +159,7 @@ lane :notify_bitrise_success do |options|
 
     slack(
       success: true,
-      slack_url: webhook,
+      slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_SUCCESS'],
       default_payloads: [:git_branch, :last_git_commit_message],
       attachment_properties: {
         pretext: "New activity from Fastlane running on Bitrise#{pretext_activity}",
@@ -176,6 +176,7 @@ lane :notify_bitrise_success do |options|
       }
     )
   else
+    UI.message("")
     # TODO: log not for bitrise
   end
 
