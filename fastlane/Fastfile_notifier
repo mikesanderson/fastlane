@@ -5,7 +5,7 @@
 
 lane :notify_tests_error do |options|
   exception = options[:exception]
-  app_title = options[:app_title]
+  title = options[:title]
 
   fields = [
     {
@@ -29,7 +29,7 @@ lane :notify_tests_error do |options|
       default_payloads: [:git_branch],
       attachment_properties: {
         pretext: "TESTS HAVE FAILED. Please check the link for more information:",
-        title: "#{app_title}",
+        title: "#{ENV['BITRISE_APP_TITLE']} (#{ENV['BITRISE_BUILD_NUMBER']})",
         title_link: "#{ENV['BITRISE_BUILD_URL']}",
         text: "Either there was a problem with the test environment, or one or more tests have failed.",
         fields: fields
@@ -41,56 +41,95 @@ lane :notify_tests_error do |options|
 end
 
 
-lane :notify_build_error do |options|
-  exception = options[:exception]
-  pretext_start = options[:pretext_start]
-  error_log = options[:error_log]
-  app_title = options[:app_title]
+lane :notify_iOS_build_error do |options|
+  if ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']
+    exception = options[:exception]
+    pretext_start = options[:pretext_start] || "BUILD ERROR iOS"
+    error_log = sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log") || "NO LOG AVAILABLE"
 
-  output_directory =ENV['SCAN_OUTPUT_DIRECTORY']
+    output_directory =ENV['SCAN_OUTPUT_DIRECTORY']
 
-  fields = [
-    {
-      title: "Exception",
-      value: "#{exception}",
-      short: true
+    fields = [
+      {
+        title: "Exception",
+        value: "#{exception}",
+        short: true
+      }
+    ]
+    if ENV['BITRISE_BUILD_URL']
+      fields << {
+      title: "More info under \"Apps & Artifacts\" → \"(#{Gym.project.app_name}).log\"",
+      value: "#{ENV['BITRISE_BUILD_URL']}",
+      short: false
     }
-  ]
-  if ENV['BITRISE_BUILD_URL']
-    fields << {
-    title: "More info under \"Apps & Artifacts\" → \"gym_(AppName).log\"",
-    value: "#{ENV['BITRISE_BUILD_URL']}",
-    short: false
-  }
+    end
+
+    slack(
+      success: false,
+      slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'],
+      default_payloads: [:git_branch],
+      attachment_properties: {
+        pretext: "#{pretext_start}. There has been a build error. See below for the XCBuild log:",
+        title: "#{ENV['BITRISE_APP_TITLE']} (#{ENV['BITRISE_BUILD_NUMBER']})",
+        title_link: "#{ENV['BITRISE_BUILD_URL']}",
+        text:"XCBuild log recorded by Fastlane:\n```\n#{error_log}\n```",
+        fields: fields
+      }
+    )
+    # This will cancel the lane without triggering another error notification:
+    ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
+    UI.user_error!("#{build_exception}")
+  else
+    # Handle error not for bitrise
   end
+end
 
-  slack(
-    success: false,
-    slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'],
-    default_payloads: [:git_branch],
-    attachment_properties: {
-      pretext: "#{pretext_start}. There has been a build error. See below for the XCBuild log:",
-      title: "#{app_title}",
-      title_link: "#{ENV['BITRISE_BUILD_URL']}",
-      text:"XCBuild log recorded by Fastlane:\n```\n#{error_log}\n```",
-      fields: fields
-    }
-  )
+lane :notify_android_build_error do |options|
+  if ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']
+    exception = options[:exception]
+    pretext_start = options[:pretext_start] || "BUILD ERROR ANDROID"
 
+    output_directory =ENV['SCAN_OUTPUT_DIRECTORY']
+
+    fields = [
+      {
+        title: "Exception",
+        value: "#{exception}",
+        short: true
+      }
+    ]
+
+    slack(
+      success: false,
+      slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'],
+      default_payloads: [:git_branch],
+      attachment_properties: {
+        pretext: "#{pretext_start}. There has been a build error. ",
+        title: "#{ENV['BITRISE_APP_TITLE']} (#{ENV['BITRISE_BUILD_NUMBER']})",
+        title_link: "#{ENV['BITRISE_BUILD_URL']}",
+        text:"See the Bitrise page for more information",
+        fields: fields
+      }
+    )
+    # This will cancel the lane without triggering another error notification:
+    ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
+    UI.user_error!("#{build_exception}")
+  else
+    # Handle error not for bitrise
+  end
 end
 
 # Because the Public install link is not available until the upload step is completed, this lane must be called seperatly
-
 lane :notify_bitrise_public_link do |options|
 
   if ENV["BITRISE_PUBLIC_INSTALL_PAGE_URL"] && ENV['NOTIFIER_SLACK_WEBHOOK_SUCCESS']
     slack(
       success: true,
-      slack_url: webhook,
+      slack_url: ENV['NOTIFIER_SLACK_WEBHOOK_SUCCESS'],
       default_payloads: [:git_branch, :last_git_commit_message],
       attachment_properties: {
         pretext: "New activity from Fastlane running on Bitrise",
-        title: "#{ENV['APP_NAME']} (#{ENV['BITRISE_BUILD_NUMBER']})",
+        title: "#{ENV['BITRISE_APP_TITLE']} (#{ENV['BITRISE_BUILD_NUMBER']})",
         title_link: "#{ENV['BITRISE_BUILD_URL']}",
         text: "Tests passed and a new build is available for download.",
         fields: [
@@ -107,6 +146,40 @@ lane :notify_bitrise_public_link do |options|
   end
 end
 
+desc 'lane: notify new build. Use this for success if BITRISE_PUBLIC_INSTALL_PAGE_URL isn\'t available'
+lane :notify_bitrise_success do |options|
+
+  if ENV['NOTIFIER_SLACK_WEBHOOK_SUCCESS']
+
+    if options[:pretext_activity]
+      pretext_activity = ": #{options[:pretext_activity]}"
+    else
+      pretext_activity = ""
+    end
+
+    slack(
+      success: true,
+      slack_url: webhook,
+      default_payloads: [:git_branch, :last_git_commit_message],
+      attachment_properties: {
+        pretext: "New activity from Fastlane running on Bitrise#{pretext_activity}",
+        title: "#{ENV['BITRISE_APP_TITLE']} (#{ENV['BITRISE_BUILD_NUMBER']})",
+        title_link: "#{ENV['BITRISE_BUILD_URL']}",
+        text: "A new build is available for download.",
+        fields: [
+            {
+                title: "Build upload location under \"Apps & Artifacts\". This may take a few minutes.",
+                value: "#{ENV["BITRISE_BUILD_URL"]}",
+                short: false
+            }
+          ]
+      }
+    )
+  else
+    # TODO: log not for bitrise
+  end
+
+end
 
 desc 'Handle and notify for errors that aren\'t otherwise'
 error do |lane, exception|
