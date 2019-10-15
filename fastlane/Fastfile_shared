@@ -123,7 +123,7 @@ lane :scan_and_notify  do | options |
     notify_iOS_build_error(
       exception: build_exception,
       pretext_start: "BUILD ERROR BEFORE TESTS",
-      error_log: error_log
+      from_scan: true
     )
 
     # This will cancel the lane without triggering another error notification:
@@ -167,23 +167,5 @@ lane :build_app_and_notify do |options|
 
 end
 
-desc 'Call this lane after an build error'
-lane :error_building_iOS do |options|
-  error_pretext = ""
-
-
-  error_log = sh("tail -30 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log")
-
-  notify_iOS_build_error(
-    exception: build_exception,
-    pretext_start: "iOS RELEASE ERROR",
-    error_log: error_log
-  )
-
-  # This will cancel the lane without triggering another error notification:
-  ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
-  UI.user_error!("#{build_exception}")
-
-end
 
 #########################

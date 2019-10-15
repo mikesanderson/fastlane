@@ -40,19 +40,21 @@ lane :notify_tests_error do |options|
   UI.user_error!("#{exception}")
 end
 
+def build_log_name_scan()
+
+end
 
 lane :notify_iOS_build_error do |options|
   if ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']
     exception = options[:exception]
     pretext_start = options[:pretext_start] || "BUILD ERROR iOS"
 
-    error_log = options[:error_log] || sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log") || "NO LOG AVAILABLE"
-    if Gym.const_defined?
-      app_name = Gym.project.app_name
-    elsif Scan.const_defined?
+    if options[:from_scan]  # There has to be a better way to do this
       app_name = Scan.project.app_name
+      error_log = sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log")
     else
-      app_name = "(app_name)"
+      app_name = Gym.project.app_name
+      error_log = sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log")
     end
 
     output_directory =ENV['SCAN_OUTPUT_DIRECTORY']
@@ -66,7 +68,7 @@ lane :notify_iOS_build_error do |options|
     ]
     if ENV['BITRISE_BUILD_URL']
       fields << {
-      title: "More info under \"Apps & Artifacts\" → \"(#{app_name}).log\"",
+      title: "More info under \"Apps & Artifacts\" → \"#{app_name}.log\"",
       value: "#{ENV['BITRISE_BUILD_URL']}",
       short: false
     }
