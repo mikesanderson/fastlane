@@ -198,7 +198,7 @@ error do |lane, exception|
       default_payloads: [:git_branch],
       attachment_properties: {
         pretext: "There has been an error. See the link for more information on which tests have failed.",
-        title: "#{ENV['APP_NAME']} (#{ENV['BITRISE_BUILD_NUMBER']})",
+        title: "#{ENV['BITRISE_APP_TITLE']} (#{ENV['BITRISE_BUILD_NUMBER']})",
         title_link: "#{ENV['BITRISE_BUILD_URL']}",
         text: body_text,
       fields: [
