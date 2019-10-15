@@ -46,7 +46,14 @@ lane :notify_iOS_build_error do |options|
     exception = options[:exception]
     pretext_start = options[:pretext_start] || "BUILD ERROR iOS"
 
-    error_log = options[:error_log] || sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log") || "NO LOG AVAILABLE"
+    error_log = options[:error_log] || sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log") || "NO LOG AVAILABLE"
+    if Gym
+      app_name = Gym.project.app_name
+    elsif Scan
+      app_name = Scan.project.app_name
+    else
+      app_name = "(app_name)"
+    end
 
     output_directory =ENV['SCAN_OUTPUT_DIRECTORY']
 
@@ -59,7 +66,7 @@ lane :notify_iOS_build_error do |options|
     ]
     if ENV['BITRISE_BUILD_URL']
       fields << {
-      title: "More info under \"Apps & Artifacts\" → \"(#{Gym.project.app_name}).log\"",
+      title: "More info under \"Apps & Artifacts\" → \"(#{app_name}).log\"",
       value: "#{ENV['BITRISE_BUILD_URL']}",
       short: false
     }
