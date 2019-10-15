@@ -51,7 +51,7 @@ lane :notify_iOS_build_error do |options|
 
     if options[:from_scan]  # There has to be a better way to do this
       app_name = Scan.project.app_name
-      error_log = sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log")
+      error_log = sh("tail -25 #{ENV['BITRISE_SCAN_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log")
     else
       app_name = Gym.project.app_name
       error_log = sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log")

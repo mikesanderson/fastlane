@@ -118,8 +118,6 @@ lane :scan_and_notify  do | options |
   begin
     scan(build_for_testing: true)
   rescue => build_exception
-    error_log = sh("tail -30 #{ENV['BITRISE_SCAN_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log")
-
     notify_iOS_build_error(
       exception: build_exception,
       pretext_start: "BUILD ERROR BEFORE TESTS",
