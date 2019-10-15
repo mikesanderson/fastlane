@@ -45,7 +45,8 @@ lane :notify_iOS_build_error do |options|
   if ENV['NOTIFIER_SLACK_WEBHOOK_ERROR']
     exception = options[:exception]
     pretext_start = options[:pretext_start] || "BUILD ERROR iOS"
-    error_log = sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log") || "NO LOG AVAILABLE"
+
+    error_log = options[:error_log] || sh("tail -25 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log") || "NO LOG AVAILABLE"
 
     output_directory =ENV['SCAN_OUTPUT_DIRECTORY']
 
