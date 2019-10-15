@@ -120,11 +120,10 @@ lane :scan_and_notify  do | options |
   rescue => build_exception
     error_log = sh("tail -30 #{ENV['BITRISE_SCAN_LOG_PATH_PREFIX']}#{Scan.project.app_name}-#{Scan.config[:scheme]}.log")
 
-    notify_build_error(
+    notify_iOS_build_error(
       exception: build_exception,
       pretext_start: "BUILD ERROR BEFORE TESTS",
-      error_log: error_log,
-      app_title: "#{Scan.project.app_name} (#{ENV['BITRISE_BUILD_NUMBER']})"
+      error_log: error_log
     )
 
     # This will cancel the lane without triggering another error notification:
@@ -137,8 +136,7 @@ lane :scan_and_notify  do | options |
     scan(test_without_building: true)
   rescue => test_exeception
     notify_tests_error(
-      exception: test_exeception,
-      app_title: "#{Scan.project.app_name} (#{ENV['BITRISE_BUILD_NUMBER']})"
+      exception: test_exeception
     )
 
       # This will cancel the lane without triggering another error notification:
@@ -156,17 +154,35 @@ lane :build_app_and_notify do |options|
   rescue => build_exception
     error_log = sh("tail -30 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log")
 
-    notify_build_error(
+    notify_iOS_build_error(
       exception: build_exception,
-      pretext_start: "BUILD ERROR AFTER TESTS",
-      error_log: error_log,
-      app_title: "#{Scan.project.app_name} (#{ENV['BITRISE_BUILD_NUMBER']})"
+      pretext_start: "ARCHIVING ERROR",
+      error_log: error_log
     )
 
     # This will cancel the lane without triggering another error notification:
     ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
     UI.user_error!("#{build_exception}")
   end
+
+end
+
+desc 'Call this lane after an build error'
+lane :error_building_iOS do |options|
+  error_pretext = ""
+
+
+  error_log = sh("tail -30 #{ENV['BITRISE_GYM_LOG_PATH_PREFIX']}#{Gym.project.app_name}-#{Gym.config[:scheme]}.log")
+
+  notify_iOS_build_error(
+    exception: build_exception,
+    pretext_start: "iOS RELEASE ERROR",
+    error_log: error_log
+  )
+
+  # This will cancel the lane without triggering another error notification:
+  ENV['NOTIFIER_SLACK_WEBHOOK_ERROR'] = nil
+  UI.user_error!("#{build_exception}")
 
 end
 
