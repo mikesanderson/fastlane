@@ -48,6 +48,7 @@ end
 lane :scan_on_bitrise do |options|
   ENV['SCAN_OUTPUT_DIRECTORY'] = ENV['BITRISE_DEPLOY_DIR']
   ENV['SCAN_BUILDLOG_PATH'] = ENV['BITRISE_DEPLOY_DIR']
+  # This "prefix" is seperate because of previously-observed issue that places a `scan_` prefix before the file, but now is not happening.
   ENV['BITRISE_SCAN_LOG_PATH_PREFIX'] = "#{ENV['BITRISE_DEPLOY_DIR']}/"
 
   scan_and_notify
@@ -56,6 +57,7 @@ end
 lane :build_on_bitrise do |options|
   ENV['GYM_BUILDLOG_PATH'] = ENV['BITRISE_DEPLOY_DIR']
   ENV['GYM_OUTPUT_DIRECTORY'] = ENV['BITRISE_DEPLOY_DIR']
+  # This "prefix" is seperate because of previously-observed issue that places a `gym_` prefix before the file, but now is not happening.
   ENV['BITRISE_GYM_LOG_PATH_PREFIX'] = "#{ENV['BITRISE_DEPLOY_DIR']}/"
 
   build_app_and_notify
